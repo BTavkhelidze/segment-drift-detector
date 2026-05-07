@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/
+
+.vscode/
+.idea/
+
+*.log
+
+.env
+.env.*
+
+.turbo/
+.pnpm-store/
