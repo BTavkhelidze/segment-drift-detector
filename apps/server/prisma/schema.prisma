@@ -13,3 +13,106 @@ datasource db {
   provider = "postgresql"
 
 }
+
+enum SegmentType {
+  dynamic
+  static
+}
+
+enum SegmentStatus {
+  active
+  paused
+  archived
+}
+
+model Customer {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  email       String   @unique
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  transactions Transaction[]
+  memberships  SegmentMembership[]
+
+  @@map("customers")
+}
+
+model Transaction {
+  id          String   @id @default(uuid()) @db.Uuid
+  customerId  String   @db.Uuid
+  amount      Decimal  @db.Decimal(12, 2)
+  currency    String   @default("GEL")
+  occurredAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@index([occurredAt])
+  @@map("transactions")
+}
+
+model Segment {
+  id               String          @id @default(uuid()) @db.Uuid
+  name             String
+  description      String?
+  type             SegmentType     @default(dynamic)
+  status           SegmentStatus   @default(active)
+
+  rules            Json            @default("{}")
+  dependencyIds    String[]        @db.Uuid
+
+  version          Int             @default(1)
+  lastEvaluatedAt  DateTime?
+
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  memberships      SegmentMembership[]
+  deltas           SegmentDelta[]
+
+  @@map("segments")
+}
+
+model SegmentMembership {
+  segmentId   String   @db.Uuid
+  customerId  String   @db.Uuid
+
+  joinedAt    DateTime @default(now())
+
+  segment     Segment  @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@id([segmentId, customerId])
+
+  @@index([customerId])
+
+  @@map("segment_memberships")
+}
+
+model SegmentDelta {
+  id            String   @id @default(uuid()) @db.Uuid
+
+  segmentId     String   @db.Uuid
+
+  versionFrom   Int
+  versionTo     Int
+
+  addedIds      String[] @db.Uuid
+  removedIds    String[] @db.Uuid
+
+  addedCount    Int
+  removedCount  Int
+
+  evaluatedAt   DateTime @default(now())
+
+  segment Segment @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+
+  @@index([segmentId])
+  @@index([evaluatedAt])
+
+  @@map("segment_deltas")
+}
+
